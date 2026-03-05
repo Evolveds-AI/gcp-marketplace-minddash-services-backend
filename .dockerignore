@@ -1,0 +1,8 @@
+chatbot_llm.log
+.venv/
+__pycache__
+*.yaml
+*.npy
+.git
+.github
+.vscode

@@ -1,0 +1,22 @@
+# Dockerfile
+FROM python:3.12-slim
+
+# Establece variables de entorno que uvicorn usará por defecto
+ENV PORT 8080
+ENV HOST 0.0.0.0
+
+WORKDIR /app
+
+# Instala dependencias del sistema si fueran necesarias (ej. para psycopg2)
+# RUN apt-get update && apt-get install -y libpq-dev && rm -rf /var/lib/apt/lists/*
+
+# Copia e instala dependencias
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia el resto del código
+COPY . .
+
+# Comando de ejecución
+# Cloud Run inyecta la variable PORT. Uvicorn debe escuchar 0.0.0.0 y usar $PORT.
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT}
