@@ -78,9 +78,14 @@ def service_get_sa_credentials(id_secreto, id_proyecto):
         raise  # Re-raise the exception to stop the application
 
 
-path_to_sa_key = service_get_sa_credentials(
-    id_secreto=os.getenv("ID_SECRETO"), id_proyecto=os.getenv("GOOGLE_CLOUD_PROJECT")
-)
+_id_secreto = os.getenv("ID_SECRETO")
+if _id_secreto:
+    path_to_sa_key = service_get_sa_credentials(
+        id_secreto=_id_secreto, id_proyecto=os.getenv("GOOGLE_CLOUD_PROJECT")
+    )
+else:
+    logger.info("ID_SECRETO not configured, using Application Default Credentials (Workload Identity).")
+    path_to_sa_key = None
 
 app = FastAPI(
     title="Evolve Semantic API",
