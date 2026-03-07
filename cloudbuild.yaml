@@ -1,58 +1,28 @@
 steps:
-  # 1. Build imagen Docker
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - build
-      - -t
-      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend:$COMMIT_SHA'
-      - -t
-      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend:latest'
-      - .
+    args: [build, -t, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA', -t, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest', .]
     id: build
 
-  # 2. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - push
-      - '--all-tags'
-      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend'
+    args: [push, '--all-tags', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend']
     id: push
     waitFor: ['build']
 
-  # 3. Obtener URLs de servicios dependientes
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: bash
     args:
       - -c
       - |
-        AGENT_URL=$(gcloud run services describe minddash-agent \
-          --region=$_REGION --project=$PROJECT_ID \
-          --format='value(status.url)' 2>/dev/null || echo "")
-        DASHBOARDS_URL=$(gcloud run services describe minddash-dashboards \
-          --region=$_REGION --project=$PROJECT_ID \
-          --format='value(status.url)' 2>/dev/null || echo "")
-
-        echo "AGENT_URL=$AGENT_URL" > /workspace/service_urls.env
-        echo "DASHBOARDS_URL=$DASHBOARDS_URL" >> /workspace/service_urls.env
-    id: get-urls
-    waitFor: ['push']
-
-  # 4. Deploy a Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        source /workspace/service_urls.env
-
+        set -e
+        AGENT_URL=$(gcloud run services describe minddash-agent --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)')
+        DASH_URL=$(gcloud run services describe minddash-dashboards --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)')
         gcloud run deploy minddash-backend \
-          --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend:$COMMIT_SHA \
-          --region=$_REGION \
-          --project=$PROJECT_ID \
+          --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA \
+          --region=${_REGION} --project=$PROJECT_ID \
           --service-account=minddash-backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
-          --update-env-vars="CHAT_ENDPOINT_URL=$$AGENT_URL/chat,RENDER_CHART_ENDPOINT=$$DASHBOARDS_URL/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=$$DASHBOARDS_URL/render-table"
+          --update-env-vars="CHAT_ENDPOINT_URL=${AGENT_URL}/chat,RENDER_CHART_ENDPOINT=${DASH_URL}/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=${DASH_URL}/render-table"
     id: deploy
-    waitFor: ['get-urls']
+    waitFor: ['push']
 
 substitutions:
   _REGION: us-central1
