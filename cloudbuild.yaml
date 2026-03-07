@@ -14,13 +14,13 @@ steps:
       - -c
       - |
         set -e
-        AGENT_URL=$(gcloud run services describe minddash-agent --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)')
-        DASH_URL=$(gcloud run services describe minddash-dashboards --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)')
+        gcloud run services describe minddash-agent --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)' > /workspace/agent_url.txt
+        gcloud run services describe minddash-dashboards --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)' > /workspace/dash_url.txt
         gcloud run deploy minddash-backend \
           --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA \
           --region=${_REGION} --project=$PROJECT_ID \
           --service-account=minddash-backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
-          --update-env-vars="CHAT_ENDPOINT_URL=${AGENT_URL}/chat,RENDER_CHART_ENDPOINT=${DASH_URL}/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=${DASH_URL}/render-table"
+          --update-env-vars="CHAT_ENDPOINT_URL=$(cat /workspace/agent_url.txt)/chat,RENDER_CHART_ENDPOINT=$(cat /workspace/dash_url.txt)/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=$(cat /workspace/dash_url.txt)/render-table"
     id: deploy
     waitFor: ['push']
 
