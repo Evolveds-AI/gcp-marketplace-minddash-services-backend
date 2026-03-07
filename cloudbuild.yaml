@@ -4,9 +4,9 @@ steps:
     args:
       - build
       - -t
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend:$COMMIT_SHA'
       - -t
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend:latest'
       - .
     id: build
 
@@ -15,7 +15,7 @@ steps:
     args:
       - push
       - '--all-tags'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend'
     id: push
     waitFor: ['build']
 
@@ -26,10 +26,10 @@ steps:
       - -c
       - |
         AGENT_URL=$(gcloud run services describe minddash-agent \
-          --region=${_REGION} --project=$PROJECT_ID \
+          --region=$_REGION --project=$PROJECT_ID \
           --format='value(status.url)' 2>/dev/null || echo "")
         DASHBOARDS_URL=$(gcloud run services describe minddash-dashboards \
-          --region=${_REGION} --project=$PROJECT_ID \
+          --region=$_REGION --project=$PROJECT_ID \
           --format='value(status.url)' 2>/dev/null || echo "")
 
         echo "AGENT_URL=$AGENT_URL" > /workspace/service_urls.env
@@ -46,11 +46,11 @@ steps:
         source /workspace/service_urls.env
 
         gcloud run deploy minddash-backend \
-          --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA \
-          --region=${_REGION} \
+          --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/backend:$COMMIT_SHA \
+          --region=$_REGION \
           --project=$PROJECT_ID \
           --service-account=minddash-backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
-          --update-env-vars="CHAT_ENDPOINT_URL=$${AGENT_URL}/chat,RENDER_CHART_ENDPOINT=$${DASHBOARDS_URL}/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=$${DASHBOARDS_URL}/render-table"
+          --update-env-vars="CHAT_ENDPOINT_URL=$$AGENT_URL/chat,RENDER_CHART_ENDPOINT=$$DASHBOARDS_URL/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=$$DASHBOARDS_URL/render-table"
     id: deploy
     waitFor: ['get-urls']
 
