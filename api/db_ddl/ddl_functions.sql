@@ -200,21 +200,6 @@ $$;
 -- Tabla de Productos
 -- =======================================================
 
-(p_product_id => unknown, 
-p_name => unknown, 
-p_description => unknown, 
-p_language => unknown,
-p_tipo => unknown,
-p_config => unknown, 
-p_welcome_message => unknown, 
-p_label => unknown, 
-p_label_color => unknown,
-p_max_users => integer,
-p_is_active_rag => boolean,
-p_is_active_alerts => boolean, 
-p_is_active_insight => boolean, 
-io_product_id => unknown)
-
 CREATE OR REPLACE PROCEDURE spu_minddash_app_insert_product(
     -- 1. Parámetros OBLIGATORIOS
     p_project_id UUID,
