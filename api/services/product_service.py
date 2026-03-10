@@ -87,20 +87,20 @@ def send_register_product(product_data: ProductRegisterRequest) -> str:
 
     query_str = """
         CALL spu_minddash_app_insert_product(
-            p_project_id          => %s,
-            p_name                => %s,
-            p_description         => %s,
-            p_language            => %s,
-            p_tipo                => %s,
-            p_config              => %s, 
-            p_welcome_message     => %s,
-            p_label               => %s,
-            p_label_color         => %s,
-            p_max_users           => %s,
-            p_is_active_rag       => %s,
-            p_is_active_alerts    => %s,
-            p_is_active_insight   => %s,
-            io_product_id         => %s
+            p_project_id          => %s::UUID,
+            p_name                => %s::VARCHAR,
+            p_description         => %s::VARCHAR,
+            p_language            => %s::VARCHAR,
+            p_tipo                => %s::VARCHAR,
+            p_config              => %s::JSONB,
+            p_welcome_message     => %s::VARCHAR,
+            p_label               => %s::VARCHAR,
+            p_label_color         => %s::VARCHAR,
+            p_max_users           => %s::INTEGER,
+            p_is_active_rag       => %s::BOOLEAN,
+            p_is_active_alerts    => %s::BOOLEAN,
+            p_is_active_insight   => %s::BOOLEAN,
+            io_product_id         => %s::UUID
         );
     """
 
