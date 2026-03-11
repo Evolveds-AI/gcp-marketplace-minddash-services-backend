@@ -325,6 +325,34 @@ $$;
 
 
 -- -----------------------------------------------------------------------
+-- TABLAS FALTANTES (schema drift dev→marketplace)
+-- Creadas con IF NOT EXISTS: seguro correr múltiples veces.
+-- -----------------------------------------------------------------------
+
+-- Usada por el RAG API (middleware de validación de cuota de storage).
+-- Si está vacía, el middleware permite el acceso por defecto (comportamiento correcto).
+CREATE TABLE IF NOT EXISTS metric_configurations_quota (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    metrics_name VARCHAR(200) NOT NULL,
+    level VARCHAR(50) NOT NULL,
+    organization_id UUID NOT NULL,
+    dimension VARCHAR(100) NOT NULL,
+    quota NUMERIC(18,2) NOT NULL
+);
+
+-- Usada por el RAG API para trackear documentos subidos por producto.
+CREATE TABLE IF NOT EXISTS rag_uploaded_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id UUID NOT NULL,
+    filename VARCHAR NOT NULL,
+    content_type VARCHAR NOT NULL,
+    uri VARCHAR NOT NULL,
+    size BIGINT DEFAULT 0,
+    status VARCHAR DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------
 -- BILLING SPs
 -- -----------------------------------------------------------------------
 
