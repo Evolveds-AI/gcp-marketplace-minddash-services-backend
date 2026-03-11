@@ -1,28 +1,94 @@
 steps:
+  # 1. Build imagen del backend
   - name: 'gcr.io/cloud-builders/docker'
-    args: [build, -t, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA', -t, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest', .]
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA'
+      - -t
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest'
+      - .
     id: build
 
+  # 2. Push imagen al Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [push, '--all-tags', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend']
     id: push
     waitFor: ['build']
 
+  # 3. DB Init: crea/actualiza Cloud Run Job y lo ejecuta antes del deploy.
+  #    El Job corre db_init_marketplace.sql contra Cloud SQL via VPC connector.
+  #    Es idempotente: CREATE OR REPLACE + DROP IF EXISTS.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: bash
+    id: db-init
+    waitFor: ['push']
     args:
       - -c
       - |
         set -e
-        gcloud run services describe minddash-agent --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)' > /workspace/agent_url.txt
-        gcloud run services describe minddash-dashboards --region=${_REGION} --project=$PROJECT_ID --format='value(status.url)' > /workspace/dash_url.txt
+
+        JOB_NAME="minddash-db-init"
+        IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA"
+        VPC_CONNECTOR="projects/$PROJECT_ID/locations/${_REGION}/connectors/minddash-conn"
+        SA="minddash-backend-sa@$PROJECT_ID.iam.gserviceaccount.com"
+
+        echo "==> Actualizando Cloud Run Job $JOB_NAME con imagen $COMMIT_SHA..."
+
+        # Intentar update; si no existe, crear
+        gcloud run jobs update "$JOB_NAME" \
+          --image="$IMAGE" \
+          --region="${_REGION}" \
+          --project="$PROJECT_ID" \
+          --service-account="$SA" \
+          --vpc-connector="$VPC_CONNECTOR" \
+          --vpc-egress=all-traffic \
+          --set-secrets=DATABASE_URL=minddash-db-url:latest \
+          --command=python \
+          --args="scripts/db_init.py" \
+          --task-timeout=120 \
+          2>/dev/null \
+        || gcloud run jobs create "$JOB_NAME" \
+          --image="$IMAGE" \
+          --region="${_REGION}" \
+          --project="$PROJECT_ID" \
+          --service-account="$SA" \
+          --vpc-connector="$VPC_CONNECTOR" \
+          --vpc-egress=all-traffic \
+          --set-secrets=DATABASE_URL=minddash-db-url:latest \
+          --command=python \
+          --args="scripts/db_init.py" \
+          --task-timeout=120
+
+        echo "==> Ejecutando DB init job y esperando resultado..."
+        gcloud run jobs execute "$JOB_NAME" \
+          --region="${_REGION}" \
+          --project="$PROJECT_ID" \
+          --wait
+
+        echo "==> DB init completado exitosamente."
+
+  # 4. Deploy del servicio Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    id: deploy
+    waitFor: ['db-init']
+    args:
+      - -c
+      - |
+        set -e
+        gcloud run services describe minddash-agent \
+          --region=${_REGION} --project=$PROJECT_ID \
+          --format='value(status.url)' > /workspace/agent_url.txt
+        gcloud run services describe minddash-dashboards \
+          --region=${_REGION} --project=$PROJECT_ID \
+          --format='value(status.url)' > /workspace/dash_url.txt
+
         gcloud run deploy minddash-backend \
           --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA \
           --region=${_REGION} --project=$PROJECT_ID \
           --service-account=minddash-backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
           --update-env-vars="CHAT_ENDPOINT_URL=$(cat /workspace/agent_url.txt)/chat,RENDER_CHART_ENDPOINT=$(cat /workspace/dash_url.txt)/preview_legacy,ENDPOINT_RENDER_TABLE_IMG=$(cat /workspace/dash_url.txt)/render-table"
-    id: deploy
-    waitFor: ['push']
 
 substitutions:
   _REGION: us-central1
