@@ -4,6 +4,7 @@
 venv/
 # Ignored secrets for Marketplace migration
 api/secret/sa-key.json
+.env
 .env copy
 api/services/text.ipynb
 api/db_ddl/ddl_views.sql
