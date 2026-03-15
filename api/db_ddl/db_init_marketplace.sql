@@ -370,5 +370,54 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------
+-- SEMANTIC LAYER (schema drift: tabla no existía en marketplace DB)
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS semantic_layer_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL,
+    object_path_saved VARCHAR(255) NOT NULL,
+    bucket_name_saved VARCHAR(255) NOT NULL,
+    object_path_deployed VARCHAR(255) NULL,
+    bucket_name_deployed VARCHAR(255) NULL,
+    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT products_semantic_layer_configs_fkey FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE OR REPLACE PROCEDURE spu_minddash_app_insert_role_semantic_layer(
+    OUT p_new_id UUID,
+    IN p_product_id UUID,
+    IN p_object_path_saved VARCHAR,
+    IN p_bucket_name_saved VARCHAR,
+    IN p_object_path_deployed VARCHAR DEFAULT NULL,
+    IN p_bucket_name_deployed VARCHAR DEFAULT NULL
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO semantic_layer_configs (
+        product_id, object_path_saved, bucket_name_saved,
+        object_path_deployed, bucket_name_deployed, updated_at
+    ) VALUES (
+        p_product_id, p_object_path_saved, p_bucket_name_saved,
+        p_object_path_deployed, p_bucket_name_deployed, CURRENT_TIMESTAMP
+    )
+    RETURNING id INTO p_new_id;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE spu_minddash_app_delete_role_semantic_layer(
+    IN p_id UUID
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    DELETE FROM semantic_layer_configs WHERE id = p_id;
+    IF NOT FOUND THEN
+        RAISE WARNING 'No se encontró un registro con ID % para eliminar.', p_id;
+    END IF;
+END;
+$$;
+
+-- -----------------------------------------------------------------------
 -- FIN
 -- -----------------------------------------------------------------------
