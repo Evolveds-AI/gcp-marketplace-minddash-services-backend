@@ -385,6 +385,14 @@ CREATE TABLE IF NOT EXISTS semantic_layer_configs (
     CONSTRAINT products_semantic_layer_configs_fkey FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+-- Garantizar columnas por si la tabla existía con schema viejo (idempotente)
+ALTER TABLE semantic_layer_configs
+  ADD COLUMN IF NOT EXISTS object_path_saved VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS bucket_name_saved VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS object_path_deployed VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS bucket_name_deployed VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
 CREATE OR REPLACE PROCEDURE spu_minddash_app_insert_role_semantic_layer(
     OUT p_new_id UUID,
     IN p_product_id UUID,
